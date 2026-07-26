@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dataset Preprocessor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">dataset_preprocessor</div>
+      <h1>Dataset Preprocessor</h1>
+      <div class="sub">Upload a CSV or Excel file, inspect it, configure cleaning steps, export a model-ready dataset.</div>
+    </div>
+  </header>
+
+  <div class="steps">
+    <div class="step" id="step1">1 · Upload</div>
+    <div class="step" id="step2">2 · Diagnose</div>
+    <div class="step" id="step3">3 · Configure</div>
+    <div class="step" id="step4">4 · Export</div>
+  </div>
+
+  <div id="dropzone" class="dropzone">
+    <div class="icon">[ .csv / .xlsx / .xls ]</div>
+    <div class="main">Drop a CSV or Excel file here, or click to browse</div>
+    <div class="hint">Parsing happens locally in your browser — nothing is uploaded anywhere.</div>
+    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="stat-strip">
+      <div class="stat-card"><div class="k">File</div><div class="v" id="statFile" style="font-size:13px;">—</div></div>
+      <div class="stat-card"><div class="k">Rows</div><div class="v" id="statRows">—</div></div>
+      <div class="stat-card"><div class="k">Columns</div><div class="v" id="statCols">—</div></div>
+      <div class="stat-card c-coral"><div class="k">Duplicates</div><div class="v" id="statDupes">—</div></div>
+      <div class="stat-card c-amber"><div class="k">Nulls</div><div class="v" id="statNulls">—</div></div>
+      <div class="stat-card c-rose"><div class="k">Mismatches</div><div class="v" id="statMismatch">—</div></div>
+      <div class="stat-card c-accent"><div class="k">Status</div><div class="v" id="statStatus" style="font-size:13px;">—</div></div>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <h2>Columns</h2>
+        <div class="col-list" id="colList"></div>
+
+        <div class="reset-link" id="resetBtn">↺ start over with a new file</div>
+      </div>
+
+      <div class="panel">
+        <h2>Preprocessing options</h2>
+
+        <div class="opt-group">
+          <label class="title">Missing values</label>
+          <select id="optMissing">
+            <option value="none">Leave as-is</option>
+            <option value="drop">Drop rows with any missing value</option>
+            <option value="fillMeanMode">Fill numeric with mean, text with mode</option>
+            <option value="fillZero">Fill numeric with 0, text with empty string</option>
+          </select>
+        </div>
+
+        <div class="opt-group">
+          <label class="title">Duplicate rows</label>
+          <div class="checkline"><input type="checkbox" id="optDedupe"><label for="optDedupe">Remove exact duplicate rows</label></div>
+        </div>
+
+        <div class="opt-group">
+          <label class="title">Type mismatches</label>
+          <select id="optMismatch">
+            <option value="convert">Convert to null, then apply missing-value rule above</option>
+            <option value="drop">Drop rows with mismatched values</option>
+            <option value="none">Leave as-is</option>
+          </select>
+          <div class="hint" style="margin-top:6px; color:var(--muted); font-size:11px;">e.g. text like "N/A" or "unknown" sitting in a numeric column</div>
+        </div>
+
+        <div class="opt-group">
+          <label class="title">Numeric scaling</label>
+          <select id="optScale">
+            <option value="none">None</option>
+            <option value="minmax">Min-max normalize (0–1)</option>
+            <option value="zscore">Standardize (z-score)</option>
+          </select>
+        </div>
+
+        <div class="opt-group">
+          <label class="title">Categorical encoding</label>
+          <select id="optEncode">
+            <option value="none">None</option>
+            <option value="onehot">One-hot encode</option>
+            <option value="label">Label encode</option>
+          </select>
+          <select id="optEncodeScope" style="margin-top:8px; display:none;">
+            <option value="all">Apply to all eligible text columns</option>
+            <option value="specific">Apply to specific column(s)</option>
+          </select>
+          <div id="encodeColSelect" style="display:none; margin-top:8px; max-height:150px; overflow-y:auto; border:1px solid var(--border); border-radius:6px; padding:8px;"></div>
+          <div class="hint" style="margin-top:6px; color:var(--muted); font-size:11px;">One-hot only applies to columns with ≤15 unique values</div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-primary" id="applyBtn">Apply preprocessing</button>
+          <button class="btn-secondary" id="downloadBtn" style="display:none;">Download processed CSV</button>
+        </div>
+
+        <div class="log" id="logBox"></div>
+
+        <h2 style="margin-top:22px;">Preview <span id="previewLabel" style="color:var(--muted); text-transform:none; letter-spacing:0;">(first 10 rows)</span></h2>
+        <div class="table-wrap"><table id="previewTable"></table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
